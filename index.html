@@ -18,6 +18,7 @@
         }
         .flash-card {
             min-height: 200px;
+            max-height: 400px; /* Add max height */
             cursor: pointer;
             perspective: 1000px;
         }
@@ -38,13 +39,27 @@
             height: 100%;
             backface-visibility: hidden;
             padding: 2rem;
+            overflow-y: auto; /* Add scrolling */
         }
         .flash-card-back {
             transform: rotateY(180deg);
         }
+        /* Add these new styles */
+        .card-content {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .quiz-question {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        /* Add this new style */
+        .bg-ultra-light {
+            background-color: #e8eaec;
+        }
     </style>
 </head>
-<body class="bg-light">
+<body class="bg-ultra-light">
     <!-- jQuery 3.7.1 -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
     <!-- Bootstrap 5.2.3 Bundle with Popper -->
@@ -124,12 +139,16 @@
                                 <div class="flash-card mb-4" id="flashCard">
                                     <div class="flash-card-inner">
                                         <div class="flash-card-front bg-white rounded shadow">
-                                            <h3 class="concept-title"></h3>
-                                            <p class="text-muted small">Click to reveal explanation</p>
+                                            <div class="card-content">
+                                                <h3 class="concept-title"></h3>
+                                                <p class="text-muted small">Click to reveal explanation</p>
+                                            </div>
                                         </div>
                                         <div class="flash-card-back bg-white rounded shadow">
-                                            <p class="concept-explanation"></p>
-                                            <p class="text-muted small">Click to see concept</p>
+                                            <div class="card-content">
+                                                <p class="concept-explanation"></p>
+                                                <p class="text-muted small">Click to see concept</p>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -551,16 +570,16 @@
 
             // Highlight answers
             question.answers.forEach((_, i) => {
-                const element = $(`#answer${i}`).closest('.form-check');
-                if (i === question.correctIndex) {
+                const element = $(`#answer${i}`).closest('.form-check');                if (i === question.correctIndex && selectedAnswer !== null) {
+                    // Only show correct answer in green after user has made a selection
                     element.addClass('text-success');
-                } else if (i === selectedAnswer) {
+                } else if (i === selectedAnswer && !correct) {
                     element.addClass('text-danger');
                 }
             });
         }
 
-        async function initializeFlashCards(concepts, articleInfo, apiKey) {  // Added apiKey parameter
+        async function initializeFlashCards(concepts, articleInfo, apiKey) {
             // Generate questions for concepts (excluding summary)
             const conceptsWithoutSummary = concepts.slice();
             quizQuestions = await generateQuestions(apiKey, conceptsWithoutSummary);
@@ -571,23 +590,18 @@
                 explanation: articleInfo.summary
             };
             
-            // Create sequence of mixed cards and questions
+            // Create sequence of cards and questions in alternating order
             itemsSequence = [
                 { type: 'card', content: summaryCard }
             ];
             
-            // Add concepts and their corresponding questions
+            // Add concepts and their corresponding questions in alternating order
             concepts.forEach((concept, i) => {
                 itemsSequence.push({ type: 'card', content: concept });
                 if (quizQuestions[i]) {
                     itemsSequence.push({ type: 'question', content: quizQuestions[i], answered: false });
                 }
             });
-
-            // Shuffle everything except the summary card
-            const remainingItems = itemsSequence.slice(1);
-            shuffleArray(remainingItems);
-            itemsSequence = [itemsSequence[0], ...remainingItems];
             
             currentCardIndex = 0;
             score = 0;
