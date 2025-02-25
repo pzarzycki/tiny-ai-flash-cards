@@ -1,1 +1,750 @@
-<h3>Tiny AI Flash Cards</h3>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Bootstrap 5.2.3 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-rbsA2VBKQhggwzxH7pPCaAqO46MgnOM80zW1RWuH61DGLwZJEdK2Kadq2F9CUG65" crossorigin="anonymous">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAABhWlDQ1BJQ0MgcHJvZmlsZQAAKJF9kT1Iw0AcxV9TRSmVCnYQcchQnSyIijhKFYtgobQVWnUwufQLmjQkKS6OgmvBwY/FqoOLs64OroIg+AHi5Oik6CIl/i8ptIj14Lgf7+497t4BQqPMNKtrHNB020wl4mImuyoGXhFECH0YRkBmljEnSUl0HF/38PH1LsazOp/7c/SrOYsBPpF4lhmmTbxBPL1pG5z3icOsKKvE58RjJl2Q+JHrisdvnAsuCzwzbKZT88RhYrHQxkobs6KpEU8RR1VNp3wh47HKeYuzVq6y5j35C0M5fWWZ6zSHkcAiliBBhIIqSijDRox2nRQLKTqP+/iHXL9ELoVcJTByLKACDbLrB/+D391a+ckJLykUBzpfHOdjBAjuAk2d43wfO07jBAg+A1d6y1+pAzOfpNdaWvQI6N0GLq5bmrIHXO4AA0+GbMqu5Kcp5PPA+xl9UxbovwV61wzemrtO7gOkqVbJG+DgEBgpUPa6x7u72nv790yzvx8eMXKQJqPz3wAAAAZiS0dEAP8A/wD/oL2nkwAAAAlwSFlzAAALEwAACxMBAJqcGAAAAAd0SU1FB+cKAg0IJ3FnQmYAAAKbSURBVFjD7Ze/b9NAFMe/z3ZIKAqVECAhITGBBAMSv4YyMHRhQmICwdobEj8GBhZ+jR0YGGAAAQMSQysxIIRAArWiUiUkoE1i+94xcOeGxE7s66EOfafEsv1893nv3XsPcNj4gR9wzrnV2wvgyed4AIC1FrZtvZoR4CEiICKsY2UAZ2cvcH5+DGstAKAZGYQiEADWNvDz8gKxVNjKFN7ZVai0LxIhVKEKLxOVuh5UKKvfawNA8GHbBm7ePIdUDWgNoEmQCjACIAQkFJJYQ8QS1loQEaTUMAZQSuF6fRGJvA5SCUTOI0e1mEgohpQSQghorUFEyLIM1lqIqzJAq7WNEydO9f+TUnqXFJBud/nG4/EtADsBcLtcVkA2gEVnLSKlQEhwLiAIUNogVRKpjKE1g9YMhupIhSwhAUSSkOgYidaIU4OpqYvL9gqSJKnFQDAyxnTT7Hy8BaXiWWu/AACW5yueDhKwLBrg7h2HzsE8jBEIIg5jCowEpFJwCUdkEigVQmkBzsOF80pEAAImewuVFRCHYGwBbFGibRnYDsE4BHpeUKkDKukjkirXtgUYC8AYB1twsADAEQOZwdYZCFpL0VhLQA7K9gV4gngSEk8JfShyayJwHmA3n1/u3HZcjIVkkVK/S8A44zgHQhGEIBQUIHyE1kAv4MaBMeqP52eDQz8al+SgFYoiY6hrZ28cqtWByIvae8TBcRx3ekhHXgRCSkGSJOC8eA56EQwGg/x7JEniq8GfG1AUBV3XhVIKjuN4ecDKrQubLvJud2/d6O+17dI0BQDkeY44jstxnHKecx4URTHwpzrP80GQ53khhPCPYJqu1xUJaZqCMYYsywZjjDFmrf2rPBdFAaUUgiDwh+DvhPM8h+/7MMb8t2ECgH93OP2o/AKEq5RLpXu53AAAAABJRU5ErkJggg==">
+    <!-- PDF.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <title>Tiny AI Flash Cards</title>
+    <style>
+        .main-container {
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        .flash-card {
+            min-height: 200px;
+            cursor: pointer;
+            perspective: 1000px;
+        }
+        .flash-card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+        .flash-card.flipped .flash-card-inner {
+            transform: rotateY(180deg);
+        }
+        .flash-card-front, .flash-card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            padding: 2rem;
+        }
+        .flash-card-back {
+            transform: rotateY(180deg);
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <!-- jQuery 3.7.1 -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- Bootstrap 5.2.3 Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4" crossorigin="anonymous"></script>
+    <div class="main-container d-flex align-items-center justify-content-center">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-md-8 col-lg-6">
+                    <div class="card shadow">
+                        <div class="card-header bg-primary text-white">
+                            <div id="initialHeader">
+                                <h3 class="mb-0">
+                                    <i class="bi bi-journal-text me-2"></i>
+                                    Tiny AI Flash Cards
+                                </h3>
+                                <p class="mb-0 mt-2 small">
+                                    Transform any PDF article into a set of study flash cards using AI. 
+                                    You'll need an OpenRouter API key to use this tool.
+                                </p>
+                            </div>
+                            <div id="articleHeader" class="d-none">
+                                <h4 class="mb-0">
+                                    <i class="bi bi-journal-text me-2"></i>
+                                    <span class="article-title"></span>
+                                </h4>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div id="alertArea"></div>
+                            <div id="loadingPanel" class="d-none">
+                                <div class="text-center p-4">
+                                    <div class="spinner-border text-primary mb-3" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    <h5>Processing your document, generating flash cards...</h5>
+                                    <p class="text-muted small">This might take a minute or two.</p>
+                                </div>
+                            </div>
+                            <div id="mainForm">
+                                <form id="flashCardForm">
+                                    <div class="mb-3">
+                                        <label for="apiKey" class="form-label">OpenRouter API KEY</label>
+                                        <input type="password" 
+                                               class="form-control" 
+                                               id="apiKey" 
+                                               placeholder="sk-or-..." 
+                                               required>
+                                        <div class="form-text">
+                                            Don't have an API key? <a href="https://openrouter.ai/keys" target="_blank">Get one here</a> (free registration available)
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="articleUrl" class="form-label">Article URL (pdf)</label>
+                                        <input type="url" 
+                                               class="form-control" 
+                                               id="articleUrl" 
+                                               placeholder="https://example.com/article.pdf" 
+                                               value="https://arxiv.org/pdf/2407.02524"
+                                               required>
+                                        <div class="form-text">
+                                            Find interesting research papers on <a href="https://arxiv.org" target="_blank">arXiv.org</a>. Just use the PDF link from any paper!
+                                        </div>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary w-100">Generate Flash Cards</button>
+                                </form>
+                            </div>
+                            <div id="flashCardsPanel" class="d-none">
+                                <div class="text-center mb-4">
+                                    <hr>
+                                    <h5>Study Cards & Quiz</h5>
+                                    <p class="text-muted">
+                                        Card <span id="currentCard">1</span> of <span id="totalCards">0</span>
+                                        • Score: <span id="score">0</span> points
+                                    </p>
+                                </div>
+                                <!-- Flash Card -->
+                                <div class="flash-card mb-4" id="flashCard">
+                                    <div class="flash-card-inner">
+                                        <div class="flash-card-front bg-white rounded shadow">
+                                            <h3 class="concept-title"></h3>
+                                            <p class="text-muted small">Click to reveal explanation</p>
+                                        </div>
+                                        <div class="flash-card-back bg-white rounded shadow">
+                                            <p class="concept-explanation"></p>
+                                            <p class="text-muted small">Click to see concept</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Quiz Question -->
+                                <div class="quiz-question mb-4 d-none" id="quizQuestion">
+                                    <div class="bg-white rounded shadow p-4">
+                                        <h5 class="question-text mb-3"></h5>
+                                        <div class="answers">
+                                            <div class="form-check mb-2">
+                                                <input class="form-check-input" type="radio" name="answer" id="answer0">
+                                                <label class="form-check-label w-100" for="answer0"></label>
+                                            </div>
+                                            <div class="form-check mb-2">
+                                                <input class="form-check-input" type="radio" name="answer" id="answer1">
+                                                <label class="form-check-label w-100" for="answer1"></label>
+                                            </div>
+                                            <div class="form-check mb-2">
+                                                <input class="form-check-input" type="radio" name="answer" id="answer2">
+                                                <label class="form-check-label w-100" for="answer2"></label>
+                                            </div>
+                                            <div class="form-check mb-2">
+                                                <input class="form-check-input" type="radio" name="answer" id="answer3">
+                                                <label class="form-check-label w-100" for="answer3"></label>
+                                            </div>
+                                        </div>
+                                        <div class="feedback mt-3 d-none"></div>
+                                    </div>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <button class="btn btn-secondary" id="prevCard">
+                                        <i class="bi bi-arrow-left"></i> Previous
+                                    </button>
+                                    <button class="btn btn-primary" id="nextCard">
+                                        Next <i class="bi bi-arrow-right"></i>
+                                    </button>
+                                </div>
+                                <div class="text-center mt-4">
+                                    <button class="btn btn-outline-primary btn-sm" id="startOver">
+                                        <i class="bi bi-arrow-repeat"></i> Start Over
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="text-muted text-center small mt-3">
+                        Powered by <span class="fw-semibold">gemini-2.0-pro-exp-02-05</span> via OpenRouter
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        // Set PDF.js workerSrc
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        async function extractTextFromPdf(pdfUrl) {
+            try {
+                // Fetch the PDF file
+                const pdfData = await fetch(pdfUrl).then(response => response.arrayBuffer());
+                
+                // Load the PDF document
+                const pdf = await pdfjsLib.getDocument({data: pdfData}).promise;
+                
+                let fullText = '';
+                
+                // Iterate through each page
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    const pageText = textContent.items.map(item => item.str).join(' ');
+                    fullText += pageText + '\n';
+                }
+                
+                return fullText.trim();
+            } catch (error) {
+                throw new Error(`Failed to process PDF: ${error.message}`);
+            }
+        }
+
+        function chunkText(text, maxChunkLength = 8000) {
+            // Split by paragraphs and preserve meaningful separators
+            const paragraphs = text.split(/\n\s*\n/);
+            const chunks = [];
+            let currentChunk = '';
+
+            for (const paragraph of paragraphs) {
+                const cleanParagraph = paragraph.trim();
+                if (!cleanParagraph) continue;
+
+                if ((currentChunk + cleanParagraph).length > maxChunkLength && currentChunk) {
+                    chunks.push(currentChunk.trim());
+                    currentChunk = cleanParagraph;
+                } else {
+                    currentChunk += (currentChunk ? '\n\n' : '') + cleanParagraph;
+                }
+            }
+
+            if (currentChunk) {
+                chunks.push(currentChunk.trim());
+            }
+
+            return chunks;
+        }
+
+        // Utility function for delay
+        const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+        async function callOpenRouter(apiKey, prompt, content, retries = 3, initialDelay = 2000) {
+            let lastError;
+            let delayTime = initialDelay;
+
+            for (let attempt = 0; attempt < retries; attempt++) {
+                try {
+                    if (attempt > 0) {
+                        console.log(`Retry attempt ${attempt + 1}/${retries}, waiting ${delayTime/1000}s...`);
+                        await delay(delayTime);
+                        delayTime *= 2; // Exponential backoff
+                    }
+
+                    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${apiKey}`,
+                            'Content-Type': 'application/json',
+                            'HTTP-Referer': window.location.href
+                        },
+                        body: JSON.stringify({
+                            model: 'google/gemini-2.0-pro-exp-02-05:free',
+                            messages: [
+                                {
+                                    role: 'user',
+                                    content: `${prompt}\n\nHere's the text to analyze:\n${content}`
+                                }
+                            ]
+                        })
+                    });
+
+                    const data = await response.json();
+                    console.log('API Response:', data);
+
+                    // Check for resource exhaustion and other quota errors
+                    const isQuotaError = 
+                        data.error?.code === 429 ||
+                        data.error?.metadata?.raw?.includes('RESOURCE_EXHAUSTED') ||
+                        data.error?.metadata?.raw?.includes('Quota exceeded') ||
+                        data.error?.metadata?.raw?.includes('generate_content_requests_per_minute');
+
+                    if (isQuotaError) {
+                        console.log('Quota error detected, will retry after delay');
+                        lastError = new Error('Model quota exceeded. Please try again in a minute.');
+                        continue; // Continue to next retry attempt
+                    }
+
+                    // Handle credits error
+                    if (response.status === 402 || data.error?.message?.includes('More credits are required')) {
+                        throw new Error(`CREDITS_ERROR:${data.error?.message || 'More credits required'}`);
+                    }
+
+                    // Handle other API errors
+                    if (data.error) {
+                        throw new Error(data.error.message || 'Unknown API error');
+                    }
+
+                    // Check for valid response format
+                    if (!data.choices?.[0]?.message?.content) {
+                        throw new Error('Invalid response format from API');
+                    }
+
+                    return data.choices[0].message.content;
+
+                } catch (error) {
+                    lastError = error;
+                    
+                    // Retry on quota errors and invalid response format
+                    if (error.message.includes('quota exceeded') || 
+                        error.message.includes('RESOURCE_EXHAUSTED') ||
+                        error.message.includes('Invalid response format')) {
+                        continue;
+                    }
+                    
+                    throw error;
+                }
+            }
+
+            // If all retries failed
+            throw lastError || new Error('Failed after all retries');
+        }
+
+        async function extractConcepts(apiKey, textChunks) {
+            const prompt = `Extract important scientific concepts from the text and return them in JSON format.
+            FORMAT YOUR RESPONSE AS VALID JSON ONLY, with this exact structure:
+            [{"concept": "concept name", "explanation": "concept explanation"}]
+
+            Guidelines:
+            1. Focus on domain-specific terminology
+            2. Brief (1-2 sentences) explanations
+            3. Maximum 20 concepts
+            4. Skip common knowledge
+            5. DO NOT include any text before or after the JSON array
+            6. NO markdown, NO formatting, ONLY the JSON array`;
+
+            let allConcepts = [];
+            
+            for (let i = 0; i < textChunks.length; i++) {
+                try {
+                    console.log(`Processing chunk ${i + 1}/${textChunks.length}`);
+                    const response = await callOpenRouter(apiKey, prompt, textChunks[i]);
+                    console.log('Raw LLM response:', response);
+                    
+                    let concepts;
+                    try {
+                        // Try to find JSON in the response using regex
+                        const jsonMatch = response.match(/\[[\s\S]*\]/);
+                        if (jsonMatch) {
+                            concepts = JSON.parse(jsonMatch[0]);
+                        } else {
+                            throw new Error('No JSON array found in response');
+                        }
+                    } catch (parseError) {
+                        console.error('JSON Parse Error:', parseError);
+                        console.log('Failed response:', response);
+                        continue;
+                    }
+
+                    if (Array.isArray(concepts) && concepts.length > 0) {
+                        console.log(`Found ${concepts.length} concepts in chunk ${i + 1}`);
+                        allConcepts = allConcepts.concat(concepts);
+                    }
+                } catch (error) {
+                    console.error(`Error processing chunk ${i + 1}:`, error);
+                    // If it's a credits error or a fatal error after retries, stop processing
+                    if (error.message.includes('More credits are required') ||
+                        error.message.includes('Failed after')) {
+                        throw error;
+                    }
+                    // Otherwise continue with next chunk
+                }
+            }
+
+            // Log before deduplication
+            console.log('All concepts before deduplication:', allConcepts);
+
+            // Deduplicate concepts based on similarity
+            const uniqueConcepts = allConcepts.filter((concept, index, self) =>
+                index === self.findIndex(c => 
+                    c?.concept?.toLowerCase() === concept?.concept?.toLowerCase() ||
+                    c?.concept?.toLowerCase()?.includes(concept?.concept?.toLowerCase()) ||
+                    concept?.concept?.toLowerCase()?.includes(c?.concept?.toLowerCase())
+                )
+            ).filter(c => c?.concept && c?.explanation); // Ensure both fields exist
+
+            // Limit to top 20 concepts
+            return uniqueConcepts.slice(0, 20);
+        }
+
+        function parseConceptsFromText(text) {
+            const concepts = [];
+            
+            // Split by markdown headers or numbered items
+            const sections = text.split(/(?:^|\n)(?:##?\s+|(?:\d+\.?\s+))/);
+            
+            for (const section of sections) {
+                if (!section.trim()) continue;
+                
+                // Try to split into concept and explanation
+                const lines = section.trim().split(/\n+/);
+                if (lines.length >= 1) {
+                    const concept = lines[0].replace(/[:#\-*]/g, '').trim();
+                    const explanation = lines.slice(1).join(' ').replace(/[*_]/g, '').trim();
+                    
+                    if (concept && explanation) {
+                        concepts.push({ concept, explanation });
+                    }
+                }
+            }
+            
+            return concepts;
+        }
+
+        async function extractArticleInfo(apiKey, text) {
+            const prompt = `Extract the title and write a very brief summary (max 2 sentences) of this scientific article.
+            Format your response as valid JSON only, like this:
+            {"title": "The title", "summary": "Brief summary"}
+            DO NOT include any other text, just the JSON object.`;
+
+            const response = await callOpenRouter(apiKey, prompt, text.substring(0, 2000)); // Use first 2000 chars
+            console.log('Article info response:', response);
+            
+            try {
+                const jsonMatch = response.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    return JSON.parse(jsonMatch[0]);
+                }
+                throw new Error('No valid JSON found in article info response');
+            } catch (error) {
+                console.error('Failed to parse article info:', error);
+                return { 
+                    title: "Untitled Article", 
+                    summary: "No summary available" 
+                };
+            }
+        }
+
+        async function generateQuestions(apiKey, concepts) {
+            const prompt = `Generate a multiple choice question for this concept. Response must be valid JSON only with this structure:
+            {"question": "the question text", "answers": ["answer1", "answer2", "answer3", "answer4"], "correctIndex": X}
+            where X is 0-3 indicating which answer is correct. Make answers challenging but clear.`;
+
+            let questions = [];
+            
+            for (const concept of concepts) {
+                try {
+                    const response = await callOpenRouter(apiKey, prompt, 
+                        `Concept: ${concept.concept}\nExplanation: ${concept.explanation}`);
+                    
+                    const jsonMatch = response.match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                        const question = JSON.parse(jsonMatch[0]);
+                        questions.push(question);
+                    }
+                } catch (error) {
+                    console.error('Error generating question:', error);
+                    // Continue with next concept if one fails
+                }
+            }
+            
+            return questions;
+        }
+
+        // Update the global variables
+        let currentCardIndex = 0;
+        let flashCards = [];
+        let quizQuestions = [];
+        let score = 0;
+        let itemsSequence = []; // Will contain mixed cards and questions
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        function showCurrentItem(index) {
+            const item = itemsSequence[index];
+            $('#flashCard, #quizQuestion').addClass('d-none');
+            $('.feedback').addClass('d-none').empty();
+            $('input[name="answer"]').prop('checked', false)
+                .closest('.form-check').removeClass('text-success text-danger');
+
+            if (item.type === 'card') {
+                $('#flashCard').removeClass('d-none flipped');
+                $('.concept-title').text(item.content.concept);
+                $('.concept-explanation').text(item.content.explanation);
+            } else { // question
+                $('#quizQuestion').removeClass('d-none');
+                $('.question-text').text(item.content.question);
+                item.content.answers.forEach((answer, i) => {
+                    $(`#answer${i}`).next('label').text(answer);
+                });
+            }
+
+            $('#currentCard').text(index + 1);
+            $('#totalCards').text(itemsSequence.length);
+            $('#score').text(score);
+            
+            $('#prevCard').prop('disabled', index === 0);
+            $('#nextCard').prop('disabled', index === itemsSequence.length - 1);
+        }
+
+        function checkAnswer(index, selectedAnswer) {
+            const question = itemsSequence[index].content;
+            const correct = selectedAnswer === question.correctIndex;
+            
+            if (correct && !itemsSequence[index].answered) {
+                score++;
+                $('#score').text(score);
+            }
+            
+            itemsSequence[index].answered = true;
+            
+            // Show feedback
+            $('.feedback')
+                .removeClass('d-none')
+                .html(correct ? 
+                    '<div class="alert alert-success">Correct!</div>' :
+                    `<div class="alert alert-danger">Incorrect. The right answer was: ${question.answers[question.correctIndex]}</div>`);
+
+            // Highlight answers
+            question.answers.forEach((_, i) => {
+                const element = $(`#answer${i}`).closest('.form-check');
+                if (i === question.correctIndex) {
+                    element.addClass('text-success');
+                } else if (i === selectedAnswer) {
+                    element.addClass('text-danger');
+                }
+            });
+        }
+
+        async function initializeFlashCards(concepts, articleInfo, apiKey) {  // Added apiKey parameter
+            // Generate questions for concepts (excluding summary)
+            const conceptsWithoutSummary = concepts.slice();
+            quizQuestions = await generateQuestions(apiKey, conceptsWithoutSummary);
+            
+            // Create initial flash card with article summary
+            const summaryCard = {
+                concept: "Article Summary",
+                explanation: articleInfo.summary
+            };
+            
+            // Create sequence of mixed cards and questions
+            itemsSequence = [
+                { type: 'card', content: summaryCard }
+            ];
+            
+            // Add concepts and their corresponding questions
+            concepts.forEach((concept, i) => {
+                itemsSequence.push({ type: 'card', content: concept });
+                if (quizQuestions[i]) {
+                    itemsSequence.push({ type: 'question', content: quizQuestions[i], answered: false });
+                }
+            });
+
+            // Shuffle everything except the summary card
+            const remainingItems = itemsSequence.slice(1);
+            shuffleArray(remainingItems);
+            itemsSequence = [itemsSequence[0], ...remainingItems];
+            
+            currentCardIndex = 0;
+            score = 0;
+            
+            // Show flash cards panel and update header
+            $('#loadingPanel').addClass('d-none');
+            $('#flashCardsPanel').removeClass('d-none');
+            $('#initialHeader').addClass('d-none');
+            $('#articleHeader').removeClass('d-none');
+            
+            $('.article-title').text(articleInfo.title);
+            
+            // Show first item
+            showCurrentItem(currentCardIndex);
+        }
+
+        $(document).ready(function() {
+            // Cookie handling functions
+            function setCookie(name, value, days) {
+                const d = new Date();
+                d.setTime(d.getTime() + (days * 24 * 60 * 60 * 1000));
+                const expires = "expires=" + d.toUTCString();
+                document.cookie = name + "=" + value + ";" + expires + ";path=/";
+            }
+
+            function getCookie(name) {
+                const value = `; ${document.cookie}`;
+                const parts = value.split(`; ${name}=`);
+                if (parts.length === 2) return parts.pop().split(';').shift();
+            }
+
+            // Load API key from cookie if exists
+            const savedApiKey = getCookie('OPENROUTER_API_KEY');
+            if (savedApiKey) {
+                $('#apiKey').val(savedApiKey);
+            }
+
+            $('#flashCardForm').on('submit', async function(e) {
+                e.preventDefault();
+                
+                // Clear previous alerts and ensure proper panel state
+                $('#alertArea').empty();
+                $('#flashCardsPanel').addClass('d-none');
+                $('#mainForm').addClass('d-none');
+                $('#loadingPanel').removeClass('d-none');
+
+                const apiKey = $('#apiKey').val().trim();
+                const articleUrl = $('#articleUrl').val().trim();
+                
+                let isValid = true;
+                let errors = [];
+
+                // Validate API Key
+                if (!apiKey) {
+                    errors.push('API Key is required');
+                    isValid = false;
+                } else if (!apiKey.startsWith('sk-or-')) {
+                    errors.push('Invalid API Key format. Should start with "sk-or-"');
+                    isValid = false;
+                }
+
+                // Validate Article URL
+                if (!articleUrl) {
+                    errors.push('Article URL is required');
+                    isValid = false;
+                } else {
+                    try {
+                        new URL(articleUrl); // Just validate URL format
+                    } catch {
+                        errors.push('Invalid URL format');
+                        isValid = false;
+                    }
+                }
+
+                // Display errors if any
+                if (!isValid) {
+                    const alertHtml = `
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <strong>Please fix the following errors:</strong>
+                            <ul class="mb-0">
+                                ${errors.map(error => `<li>${error}</li>`).join('')}
+                            </ul>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    `;
+                    $('#alertArea').html(alertHtml);
+                    return;
+                }
+
+                // Save API key to cookie (30 days expiration)
+                setCookie('OPENROUTER_API_KEY', apiKey, 30);
+
+                // Show loading panel and hide form
+                $('#mainForm').addClass('d-none');
+                $('#loadingPanel').removeClass('d-none');
+
+                try {
+                    // Extract text from PDF
+                    const pdfText = await extractTextFromPdf(articleUrl);
+                    console.log('Extracted text length:', pdfText.length);
+                    
+                    if (!pdfText || pdfText.length < 100) {
+                        throw new Error('Could not extract meaningful text from the PDF');
+                    }
+
+                    // First get article info
+                    const articleInfo = await extractArticleInfo(apiKey, pdfText);
+
+                    // Split text into manageable chunks
+                    const textChunks = chunkText(pdfText);
+                    console.log(`Split into ${textChunks.length} chunks`);
+
+                    // Extract concepts using OpenRouter API
+                    const concepts = await extractConcepts(apiKey, textChunks);
+                    console.log('Extracted concepts:', concepts);
+
+                    // Initialize flash cards with concepts and article info - pass apiKey
+                    initializeFlashCards(concepts, articleInfo, apiKey);  // Added apiKey argument
+
+                } catch (error) {
+                    // Reset UI state
+                    $('#loadingPanel').addClass('d-none');
+                    $('#mainForm').removeClass('d-none');
+                    
+                    // Show error message
+                    if (error.message.includes('More credits are required')) {
+                        const errorHtml = `
+                            <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                                <h4 class="alert-heading">Insufficient Credits</h4>
+                                <p>${error.message}</p>
+                                <hr>
+                                <p class="mb-0">
+                                    Please <a href="https://openrouter.ai/credits" target="_blank" class="alert-link">visit OpenRouter</a> 
+                                    to upgrade to a paid account or wait for your credits to refresh.
+                                </p>
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        `;
+                        $('#alertArea').html(errorHtml);
+                    } else {
+                        const alertHtml = `
+                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                <strong>Error:</strong> ${error.message}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        `;
+                        $('#alertArea').html(alertHtml);
+                    }
+                }
+            });
+
+            // Flash card navigation
+            $('#prevCard').on('click', function() {
+                if (currentCardIndex > 0) {
+                    currentCardIndex--;
+                    $('#flashCard').removeClass('flipped');
+                    showCurrentItem(currentCardIndex);
+                }
+            });
+
+            $('#nextCard').on('click', function() {
+                if (currentCardIndex < itemsSequence.length - 1) {
+                    currentCardIndex++;
+                    $('#flashCard').removeClass('flipped');
+                    showCurrentItem(currentCardIndex);
+                }
+            });
+
+            $('#flashCard').on('click', function() {
+                $(this).toggleClass('flipped');
+            });
+
+            // Add handler for quiz answers
+            $('input[name="answer"]').on('change', function() {
+                const selectedAnswer = parseInt($(this).attr('id').replace('answer', ''));
+                checkAnswer(currentCardIndex, selectedAnswer);
+            });
+
+            $('#startOver').on('click', function() {
+                $('#flashCardsPanel').addClass('d-none');
+                $('#mainForm').removeClass('d-none');
+                $('#articleHeader').addClass('d-none');
+                $('#initialHeader').removeClass('d-none');
+                itemsSequence = [];
+                currentCardIndex = 0;
+                score = 0;
+            });
+        });
+    </script>
+</body>
+</html>
