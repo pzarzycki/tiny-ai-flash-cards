@@ -334,38 +334,65 @@
             let allConcepts = [];
             
             for (let i = 0; i < textChunks.length; i++) {
-                try {
-                    console.log(`Processing chunk ${i + 1}/${textChunks.length}`);
-                    const response = await callOpenRouter(apiKey, prompt, textChunks[i]);
-                    console.log('Raw LLM response:', response);
-                    
-                    let concepts;
+                let retryCount = 0;
+                const maxRetries = 15;
+                const baseDelay = 5000; // Start with 5 seconds
+
+                while (retryCount < maxRetries) {
                     try {
-                        // Try to find JSON in the response using regex
-                        const jsonMatch = response.match(/\[[\s\S]*\]/);
-                        if (jsonMatch) {
-                            concepts = JSON.parse(jsonMatch[0]);
-                        } else {
-                            throw new Error('No JSON array found in response');
+                        if (retryCount > 0) {
+                            const delayTime = baseDelay * Math.pow(2, retryCount - 1); // Exponential backoff
+                            console.log(`Retry ${retryCount}/${maxRetries} for chunk ${i + 1}, waiting ${delayTime/1000}s...`);
+                            await delay(delayTime);
                         }
-                    } catch (parseError) {
-                        console.error('JSON Parse Error:', parseError);
-                        console.log('Failed response:', response);
+
+                        console.log(`Processing chunk ${i + 1}/${textChunks.length}`);
+                        const response = await callOpenRouter(apiKey, prompt, textChunks[i]);
+                        console.log('Raw LLM response:', response);
+                        
+                        let concepts;
+                        try {
+                            const jsonMatch = response.match(/\[[\s\S]*\]/);
+                            if (jsonMatch) {
+                                concepts = JSON.parse(jsonMatch[0]);
+                            } else {
+                                throw new Error('No JSON array found in response');
+                            }
+                        } catch (parseError) {
+                            console.error('JSON Parse Error:', parseError);
+                            console.log('Failed response:', response);
+                            throw parseError; // Propagate to outer try-catch for retry
+                        }
+
+                        if (Array.isArray(concepts) && concepts.length > 0) {
+                            console.log(`Found ${concepts.length} concepts in chunk ${i + 1}`);
+                            allConcepts = allConcepts.concat(concepts);
+                            break; // Success - exit retry loop
+                        } else {
+                            throw new Error('Invalid concepts array');
+                        }
+
+                    } catch (error) {
+                        console.error(`Error processing chunk ${i + 1}:`, error);
+                        
+                        // Check for fatal errors that shouldn't retry
+                        if (error.message.includes('CREDITS_ERROR:') ||
+                            error.message.includes('More credits are required') ||
+                            error.message.includes('Invalid API key')) {
+                            throw error; // Propagate fatal errors immediately
+                        }
+
+                        // For quota/resource errors or other failures, retry
+                        retryCount++;
+                        
+                        // If we've exhausted all retries, throw the error
+                        if (retryCount >= maxRetries) {
+                            throw new Error(`Failed to process chunk ${i + 1} after ${maxRetries} retries: ${error.message}`);
+                        }
+                        
+                        // Otherwise continue to next retry iteration
                         continue;
                     }
-
-                    if (Array.isArray(concepts) && concepts.length > 0) {
-                        console.log(`Found ${concepts.length} concepts in chunk ${i + 1}`);
-                        allConcepts = allConcepts.concat(concepts);
-                    }
-                } catch (error) {
-                    console.error(`Error processing chunk ${i + 1}:`, error);
-                    // If it's a credits error or a fatal error after retries, stop processing
-                    if (error.message.includes('More credits are required') ||
-                        error.message.includes('Failed after')) {
-                        throw error;
-                    }
-                    // Otherwise continue with next chunk
                 }
             }
 
@@ -379,7 +406,11 @@
                     c?.concept?.toLowerCase()?.includes(concept?.concept?.toLowerCase()) ||
                     concept?.concept?.toLowerCase()?.includes(c?.concept?.toLowerCase())
                 )
-            ).filter(c => c?.concept && c?.explanation); // Ensure both fields exist
+            ).filter(c => c?.concept && c?.explanation);
+
+            if (uniqueConcepts.length === 0) {
+                throw new Error('No valid concepts were extracted from the document');
+            }
 
             // Limit to top 20 concepts
             return uniqueConcepts.slice(0, 20);
@@ -662,7 +693,13 @@
                         throw new Error('Could not extract meaningful text from the PDF');
                     }
 
+                    // Update loading message to show progress
+                    const updateLoadingMessage = (message) => {
+                        $('#loadingPanel h5').text(message);
+                    };
+
                     // First get article info
+                    updateLoadingMessage('Getting article information...');
                     const articleInfo = await extractArticleInfo(apiKey, pdfText);
 
                     // Split text into manageable chunks
@@ -670,11 +707,17 @@
                     console.log(`Split into ${textChunks.length} chunks`);
 
                     // Extract concepts using OpenRouter API
+                    updateLoadingMessage('Extracting concepts from the article...');
                     const concepts = await extractConcepts(apiKey, textChunks);
                     console.log('Extracted concepts:', concepts);
 
-                    // Initialize flash cards with concepts and article info - pass apiKey
-                    initializeFlashCards(concepts, articleInfo, apiKey);  // Added apiKey argument
+                    if (!concepts || concepts.length === 0) {
+                        throw new Error('Failed to extract concepts from the article');
+                    }
+
+                    // Generate questions
+                    updateLoadingMessage('Generating quiz questions...');
+                    await initializeFlashCards(concepts, articleInfo, apiKey);
 
                 } catch (error) {
                     // Reset UI state
