@@ -19,8 +19,10 @@
         .flash-card {
             min-height: 300px;
             height: auto;
+            max-height: 400px;
             cursor: pointer;
             perspective: 1000px;
+            margin: 2rem 0;
         }
         .flash-card-inner {
             position: relative;
@@ -45,9 +47,29 @@
         }
         .card-content {
             height: 100%;
+            max-height: 360px;
             display: flex;
             flex-direction: column;
-            justify-content: center;
+            padding: 1rem;  /* Reduced from 1.5rem */
+        }
+        .card-content .concept-title,
+        .card-content .concept-explanation {
+            flex: 1;
+            /* removed overflow-y: auto */
+            margin: 0 0 1rem 0;
+        }
+        .concept-title {
+            margin-top: 0.5rem;  /* Added to reduce top gap */
+            margin-bottom: 1rem;
+        }
+        .concept-explanation {
+            margin-bottom: 1rem;
+        }
+        .card-content .card-hint {
+            flex: 0 0 auto;
+            margin: 0;
+            color: #6c757d;
+            font-size: 0.875rem;
         }
         .quiz-question {
             height: auto;
@@ -149,14 +171,14 @@
                                     <div class="flash-card-inner">
                                         <div class="flash-card-front bg-white rounded shadow">
                                             <div class="card-content">
-                                                <h3 class="concept-title"></h3>
-                                                <p class="text-muted small card-hint">Click to reveal explanation</p>
+                                                <h3 class="concept-title mb-auto"></h3>
+                                                <p class="card-hint">Click to reveal explanation</p>
                                             </div>
                                         </div>
                                         <div class="flash-card-back bg-white rounded shadow">
                                             <div class="card-content">
-                                                <p class="concept-explanation"></p>
-                                                <p class="text-muted small card-hint">Click to see concept</p>
+                                                <p class="concept-explanation mb-auto"></p>
+                                                <p class="card-hint">Click to see concept</p>
                                             </div>
                                         </div>
                                     </div>
@@ -265,7 +287,7 @@
         // Utility function for delay
         const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-        async function callOpenRouter(apiKey, prompt, content, retries = 3, initialDelay = 2000) {
+        async function callOpenRouter(apiKey, prompt, content, retries = 15, initialDelay = 15000) {
             let lastError;
             let delayTime = initialDelay;
 
@@ -364,7 +386,7 @@
             for (let i = 0; i < textChunks.length; i++) {
                 let retryCount = 0;
                 const maxRetries = 15;
-                const baseDelay = 5000; // Start with 5 seconds
+                const baseDelay = 25000; // Start with 25 seconds
 
                 while (retryCount < maxRetries) {
                     try {
@@ -500,22 +522,113 @@
             let questions = [];
             
             for (const concept of concepts) {
-                try {
-                    const response = await callOpenRouter(apiKey, prompt, 
-                        `Concept: ${concept.concept}\nExplanation: ${concept.explanation}`);
-                    
-                    const jsonMatch = response.match(/\{[\s\S]*\}/);
-                    if (jsonMatch) {
-                        const question = JSON.parse(jsonMatch[0]);
-                        questions.push(question);
+                let retryCount = 0;
+                const maxRetries = 15;
+                const baseDelay = 20000; // Start with 20 seconds
+
+                while (retryCount < maxRetries) {
+                    try {
+                        if (retryCount > 0) {
+                            const delayTime = baseDelay * Math.pow(2, retryCount - 1);
+                            console.log(`Retry ${retryCount}/${maxRetries} for question about "${concept.concept}", waiting ${delayTime/1000}s...`);
+                            await delay(delayTime);
+                        }
+
+                        const response = await callOpenRouter(apiKey, prompt, 
+                            `Concept: ${concept.concept}\nExplanation: ${concept.explanation}`);
+                        
+                        const jsonMatch = response.match(/\{[\s\S]*\}/);
+                        if (jsonMatch) {
+                            const question = JSON.parse(jsonMatch[0]);
+                            // Validate question structure
+                            if (question.question && 
+                                Array.isArray(question.answers) && 
+                                question.answers.length === 4 &&
+                                typeof question.correctIndex === 'number' &&
+                                question.correctIndex >= 0 && 
+                                question.correctIndex <= 3) {
+                                questions.push(question);
+                                break; // Success - exit retry loop
+                            } else {
+                                throw new Error('Invalid question format');
+                            }
+                        } else {
+                            throw new Error('No valid JSON in response');
+                        }
+
+                    } catch (error) {
+                        console.error(`Error generating question for "${concept.concept}":`, error);
+                        
+                        // Check for fatal errors that shouldn't retry
+                        if (error.message.includes('CREDITS_ERROR:') ||
+                            error.message.includes('More credits are required') ||
+                            error.message.includes('Invalid API key')) {
+                            throw error; // Propagate fatal errors immediately
+                        }
+
+                        retryCount++;
+                        
+                        if (retryCount >= maxRetries) {
+                            console.error(`Failed to generate question for "${concept.concept}" after ${maxRetries} retries`);
+                            break; // Skip this concept after max retries
+                        }
                     }
-                } catch (error) {
-                    console.error('Error generating question:', error);
-                    // Continue with next concept if one fails
                 }
             }
             
+            if (questions.length === 0) {
+                throw new Error('Failed to generate any valid questions');
+            }
+            
             return questions;
+        }
+
+        async function initializeFlashCards(concepts, articleInfo, apiKey) {
+            try {
+                // Generate questions for concepts (excluding summary)
+                const conceptsWithoutSummary = concepts.slice();
+                quizQuestions = await generateQuestions(apiKey, conceptsWithoutSummary);
+                
+                if (quizQuestions.length === 0) {
+                    throw new Error('Failed to generate quiz questions');
+                }
+
+                // Create initial flash card with article summary
+                const summaryCard = {
+                    concept: "Article Summary",
+                    explanation: articleInfo.summary
+                };
+                
+                // Create sequence of cards and questions in alternating order
+                itemsSequence = [
+                    { type: 'card', content: summaryCard }
+                ];
+                
+                // Add concepts and their corresponding questions in alternating order
+                concepts.forEach((concept, i) => {
+                    itemsSequence.push({ type: 'card', content: concept });
+                    if (quizQuestions[i]) {
+                        itemsSequence.push({ type: 'question', content: quizQuestions[i], answered: false });
+                    }
+                });
+                
+                currentCardIndex = 0;
+                score = 0;
+                
+                // Show flash cards panel and update header
+                $('#loadingPanel').addClass('d-none');
+                $('#flashCardsPanel').removeClass('d-none');
+                $('#initialHeader').addClass('d-none');
+                $('#articleHeader').removeClass('d-none');
+                
+                $('.article-title').text(articleInfo.title);
+                
+                // Show first item
+                showCurrentItem(currentCardIndex);
+            } catch (error) {
+                console.error('Error initializing flash cards:', error);
+                throw error; // Propagate error to main error handler
+            }
         }
 
         // Update the global variables
@@ -541,8 +654,14 @@
 
             if (item.type === 'card') {
                 $('#flashCard').removeClass('d-none flipped');
-                $('.concept-title').text(item.content.concept);
-                $('.concept-explanation').text(item.content.explanation);
+                // Fix selectors to target the exact elements
+                $('#flashCard .flash-card-front .concept-title').text(item.content.concept || '');
+                $('#flashCard .flash-card-back .concept-explanation').text(item.content.explanation || '');
+                
+                // Log for debugging
+                console.log('Showing card:', item.content);
+                console.log('Front title element:', $('#flashCard .flash-card-front .concept-title').length);
+                console.log('Back explanation element:', $('#flashCard .flash-card-back .concept-explanation').length);
             } else { // question
                 $('#quizQuestion').removeClass('d-none');
                 $('.question-text').text(item.content.question);
@@ -577,57 +696,18 @@
                     '<div class="alert alert-success">Correct!</div>' :
                     `<div class="alert alert-danger">Incorrect. The right answer was: ${question.answers[question.correctIndex]}</div>`);
 
-            // Highlight only the selected answer initially
-            question.answers.forEach((_, i) => {
-                const element = $(`#answer${i}`).closest('.form-check');
-                if (i === selectedAnswer) {
-                    // Mark selected answer (red if wrong, green if correct)
-                    element.addClass(correct ? 'text-success' : 'text-danger');
-                }
-                // Only show the correct answer in green if the selected answer was wrong
-                else if (i === question.correctIndex && !correct) {
-                    element.addClass('text-success');
-                }
-            });
-        }
-
-        async function initializeFlashCards(concepts, articleInfo, apiKey) {
-            // Generate questions for concepts (excluding summary)
-            const conceptsWithoutSummary = concepts.slice();
-            quizQuestions = await generateQuestions(apiKey, conceptsWithoutSummary);
+            // First clear any existing highlighting
+            $('.form-check').removeClass('text-success text-danger');
             
-            // Create initial flash card with article summary
-            const summaryCard = {
-                concept: "Article Summary",
-                explanation: articleInfo.summary
-            };
+            // Only highlight the selected answer and correct answer
+            const selectedElement = $(`#answer${selectedAnswer}`).closest('.form-check');
+            selectedElement.addClass(correct ? 'text-success' : 'text-danger');
             
-            // Create sequence of cards and questions in alternating order
-            itemsSequence = [
-                { type: 'card', content: summaryCard }
-            ];
-            
-            // Add concepts and their corresponding questions in alternating order
-            concepts.forEach((concept, i) => {
-                itemsSequence.push({ type: 'card', content: concept });
-                if (quizQuestions[i]) {
-                    itemsSequence.push({ type: 'question', content: quizQuestions[i], answered: false });
-                }
-            });
-            
-            currentCardIndex = 0;
-            score = 0;
-            
-            // Show flash cards panel and update header
-            $('#loadingPanel').addClass('d-none');
-            $('#flashCardsPanel').removeClass('d-none');
-            $('#initialHeader').addClass('d-none');
-            $('#articleHeader').removeClass('d-none');
-            
-            $('.article-title').text(articleInfo.title);
-            
-            // Show first item
-            showCurrentItem(currentCardIndex);
+            // Now show the correct answer only after user has made their choice
+            if (!correct) {
+                const correctElement = $(`#answer${question.correctIndex}`).closest('.form-check');
+                correctElement.addClass('text-success');
+            }
         }
 
         $(document).ready(function() {
